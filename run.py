@@ -52,6 +52,10 @@ def query(ipsuffix, name, type):
     query = dns.message.make_query(name, type)
     return sendUDPQuery(ipsuffix, query)
 
+def extractDScontent(s):
+    for line in s.split(b'\r\n'):
+        if line:
+            yield line.split(b'DS ')[1].split(b' ;')[0]
 
 def main():
     os.system('docker-compose rm --force --stop')
@@ -104,6 +108,8 @@ def main():
             runInContainer('auth_example.com', 'pdnsutil replace-rrset example.com "" SOA 20 "ns1.example.com root.example.com 2000 1200 60 1209600 30"')
             oldKSKid = int(runInContainer('auth_example.com', 'pdnsutil add-zone-key example.com KSK 2048 active published rsasha1-nsec3-sha1').split(b'\n')[-2])
             oldZSKid = int(runInContainer('auth_example.com', 'pdnsutil add-zone-key example.com ZSK 2048 active published rsasha1-nsec3-sha1').split(b'\n')[-2])
+            oldDScontent = extractDScontent(runInContainer('auth_example.com', 'pdnsutil export-zone-ds example.com'))
+            runInContainer('auth_com', 'pdnsutil replace-rrset com example DS 40 '+' '.join('"'+s.decode('ascii')+'"' for s in oldDScontent))
 
             # new RRSIGs
             newKSKid = int(runInContainer('auth_example.com', 'pdnsutil add-zone-key example.com KSK active unpublished ecdsa384').split(b'\n')[-2])
