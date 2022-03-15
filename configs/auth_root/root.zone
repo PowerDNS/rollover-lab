@@ -1,0 +1,6 @@
+.			86400	IN	SOA	a.root-servers.net. hostmaster.example. 1 1800 900 604800 86400
+.                        3600000      NS    a.root.example.
+a.root.example.          3600000      A     172.31.91.3
+
+com.		86400   IN  NS  1.ns.com.
+1.ns.com.   86400   IN  A   172.31.91.4

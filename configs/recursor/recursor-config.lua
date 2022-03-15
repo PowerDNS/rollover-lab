@@ -1,0 +1,1 @@
+readTrustAnchorsFromFile('/data/anchors')

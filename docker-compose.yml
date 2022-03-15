@@ -1,0 +1,56 @@
+---
+version: '2.0'
+services:
+  recursor:
+    image: powerdns/pdns-recursor-master:latest
+    command: --trace
+    environment:
+      - PDNS_RECURSOR_API_KEY
+    networks:
+      rollover_net:
+        ipv4_address: 172.31.91.2
+    volumes:
+      - ./configs/recursor:/etc/powerdns/recursor.d
+      - ./data:/data
+
+  auth_root:
+    image: powerdns/pdns-auth-master:latest
+    environment:
+      - PDNS_AUTH_API_KEY
+    networks:
+      rollover_net:
+        ipv4_address: 172.31.91.3
+    volumes:
+      - ./configs/auth_root:/etc/powerdns/pdns.d
+      - ./data:/data
+
+  auth_com:
+    image: powerdns/pdns-auth-master:latest
+    environment:
+      - PDNS_AUTH_API_KEY
+    networks:
+      rollover_net:
+        ipv4_address: 172.31.91.4
+    volumes:
+      - ./configs/auth_com:/etc/powerdns/pdns.d
+      - ./data:/data
+
+  auth_example.com:
+    image: powerdns/pdns-auth-master:latest
+    environment:
+      - PDNS_AUTH_API_KEY
+    networks:
+      rollover_net:
+        ipv4_address: 172.31.91.5
+    volumes:
+      - ./configs/auth_example.com:/etc/powerdns/pdns.d
+      - ./data:/data
+
+networks:
+  rollover_net:
+    driver: bridge
+    ipam:
+      driver: default
+      config:
+       - subnet: 172.31.91.0/24
+         gateway: 172.31.91.1

@@ -1,0 +1,6 @@
+com.            86400   IN  SOA 1.ns.com. hostmaster.example. 1000 1800 900 604800 86400
+com.            86400   IN  NS  1.ns.com.
+1.ns.com.       86400   IN  A   172.31.91.4
+
+example.com.    86400   IN  NS  ns.example.com.
+ns.example.com. 86400   IN  A   172.31.91.5
