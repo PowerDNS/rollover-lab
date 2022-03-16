@@ -64,7 +64,9 @@ def checkedSleep(length, ipsuffix, name, type):
     for i in range(length):
         time.sleep(1)
         ret = query(ipsuffix, name, type)
-        assert(ret.rcode() == dns.rcode.NOERROR)
+        if ret.rcode() != dns.rcode.NOERROR:
+            time.sleep(3) # let recursor flush the trace log
+            assert ret.rcode() == dns.rcode.NOERROR, ret
 
     print(ret)
 
