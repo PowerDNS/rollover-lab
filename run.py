@@ -193,8 +193,6 @@ def main():
             # wait another minute to see if things break
             checkedSleep(60, 2, 'example.com', 'SOA')
 
-            print("done, push Enter to exit")
-            input()
         finally:
             compose.terminate()
 
