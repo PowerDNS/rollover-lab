@@ -60,6 +60,14 @@ def extractDScontent(s, algo):
             if int(dsalgo) == algo:
                 yield dscontent
 
+def checkedSleep(length, ipsuffix, name, type):
+    for i in range(length):
+        time.sleep(1)
+        ret = query(ipsuffix, name, type)
+        assert(ret.rcode() == dns.rcode.NOERROR)
+
+    print(ret)
+
 def uploadDS(fromzone, tozone, relname, algo):
     DScontent = extractDScontent(runInContainer(zoneOwners[fromzone][0], f'pdnsutil export-zone-ds {fromzone}'), algo)
     runInContainer(zoneOwners[tozone][0], f'pdnsutil replace-rrset {tozone} {relname} DS 40 '+' '.join('"'+s.decode('ascii')+'"' for s in DScontent))
@@ -86,7 +94,6 @@ def main():
             runInContainer('auth_com', 'pdnsutil load-zone com. /etc/powerdns/pdns.d/com.zone')
             runInContainer('auth_com', 'pdnsutil secure-zone com')
             uploadDS('com.', '.', 'com', 13)
-            time.sleep(5)
             
             """
    ----------------------------------------------------------------
@@ -113,7 +120,6 @@ def main():
 
             # initial
             runInContainer('auth_example.com', 'pdnsutil create-zone example.com')
-            print(query(5, 'example.com', 'SOA'))
             runInContainer('auth_example.com', 'pdnsutil replace-rrset example.com "" SOA 20 "ns1.example.com root.example.com 2000 1200 60 1209600 30"')
             oldKSKid = int(runInContainer('auth_example.com', 'pdnsutil add-zone-key example.com KSK 2048 active published rsasha1-nsec3-sha1').split(b'\n')[-2])
             oldZSKid = int(runInContainer('auth_example.com', 'pdnsutil add-zone-key example.com ZSK 2048 active published rsasha1-nsec3-sha1').split(b'\n')[-2])
@@ -126,9 +132,14 @@ def main():
             newKSKid = int(runInContainer('auth_example.com', 'pdnsutil add-zone-key example.com KSK active unpublished ecdsa384').split(b'\n')[-2])
             newZSKid = int(runInContainer('auth_example.com', 'pdnsutil add-zone-key example.com ZSK active unpublished ecdsa384').split(b'\n')[-2])
 
+            # wait for recursor to get new signatures - our record (SOA) TTL is 20
+            checkedSleep(20, 2, 'example.com', 'SOA')
+
+
             # publish new DNSKEY
             runInContainer('auth_example.com', f'pdnsutil publish-zone-key example.com {newKSKid}')
             runInContainer('auth_example.com', f'pdnsutil publish-zone-key example.com {newZSKid}')
+
 
             """
    ----------------------------------------------------------------
@@ -154,18 +165,35 @@ def main():
    ----------------------------------------------------------------
             """
 
+            # wait for recursor to get new DNSKEY - TTL is 30
+            checkedSleep(30, 2, 'example.com', 'SOA')
+
+
             # new DS
             uploadDS('example.com.', 'com.', 'example', 14)
+
+
+            # wait for DS switch to get into the cache - TTL is 40
+            checkedSleep(40, 2, 'example.com', 'SOA')
+
 
             # unpublish old DNSKEY 
             runInContainer('auth_example.com', f'pdnsutil unpublish-zone-key example.com {oldKSKid}')
             runInContainer('auth_example.com', f'pdnsutil unpublish-zone-key example.com {oldZSKid}')
 
-            # unpublish old RRSIGs by deleting the old key
+
+            # wait for DNSKEY to disappear - TTL is 30
+            checkedSleep(30, 2, 'example.com', 'SOA')
+
+            # unpublish old RRSIGs by deactivating the old key
             runInContainer('auth_example.com', f'pdnsutil deactivate-zone-key example.com {oldKSKid}')
             runInContainer('auth_example.com', f'pdnsutil deactivate-zone-key example.com {oldZSKid}')
 
-            print("done, push Enter")
+
+            # wait another minute to see if things break
+            checkedSleep(60, 2, 'example.com', 'SOA')
+
+            print("done, push Enter to exit")
             input()
         finally:
             compose.terminate()
