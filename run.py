@@ -52,13 +52,16 @@ def query(ipsuffix, name, type):
     query = dns.message.make_query(name, type)
     return sendUDPQuery(ipsuffix, query)
 
-def extractDScontent(s):
+def extractDScontent(s, algo):
     for line in s.split(b'\r\n'):
         if line:
-            yield line.split(b'DS ')[1].split(b' ;')[0]
+            dscontent = line.split(b'DS ')[1].split(b' ;')[0]
+            tag, dsalgo, rest = dscontent.split(maxsplit=2)
+            if int(dsalgo) == algo:
+                yield dscontent
 
-def uploadDS(fromzone, tozone, relname):
-    DScontent = extractDScontent(runInContainer(zoneOwners[fromzone][0], f'pdnsutil export-zone-ds {fromzone}'))
+def uploadDS(fromzone, tozone, relname, algo):
+    DScontent = extractDScontent(runInContainer(zoneOwners[fromzone][0], f'pdnsutil export-zone-ds {fromzone}'), algo)
     runInContainer(zoneOwners[tozone][0], f'pdnsutil replace-rrset {tozone} {relname} DS 40 '+' '.join('"'+s.decode('ascii')+'"' for s in DScontent))
 
 
@@ -82,9 +85,8 @@ def main():
 
             runInContainer('auth_com', 'pdnsutil load-zone com. /etc/powerdns/pdns.d/com.zone')
             runInContainer('auth_com', 'pdnsutil secure-zone com')
-            uploadDS('com.', '.', 'com')
+            uploadDS('com.', '.', 'com', 13)
             time.sleep(5)
-            os.system('docker-compose restart recursor')
             
             """
    ----------------------------------------------------------------
@@ -117,7 +119,8 @@ def main():
             oldZSKid = int(runInContainer('auth_example.com', 'pdnsutil add-zone-key example.com ZSK 2048 active published rsasha1-nsec3-sha1').split(b'\n')[-2])
             # oldDScontent = extractDScontent(runInContainer('auth_example.com', 'pdnsutil export-zone-ds example.com'))
             # runInContainer('auth_com', 'pdnsutil replace-rrset com example DS 40 '+' '.join('"'+s.decode('ascii')+'"' for s in oldDScontent))
-            uploadDS('example.com.', 'com.', 'example')
+            uploadDS('example.com.', 'com.', 'example', 7)
+            os.system('docker-compose restart recursor')
 
             # publish new RRSIGs
             newKSKid = int(runInContainer('auth_example.com', 'pdnsutil add-zone-key example.com KSK active unpublished ecdsa384').split(b'\n')[-2])
@@ -152,7 +155,7 @@ def main():
             """
 
             # new DS
-            uploadDS('example.com.', 'com.', 'example')
+            uploadDS('example.com.', 'com.', 'example', 14)
 
             # unpublish old DNSKEY 
             runInContainer('auth_example.com', f'pdnsutil unpublish-zone-key example.com {oldKSKid}')
