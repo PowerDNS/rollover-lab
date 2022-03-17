@@ -134,8 +134,8 @@ def main():
             newKSKid = int(runInContainer('auth_example.com', 'pdnsutil add-zone-key example.com KSK active unpublished ecdsa384').split(b'\n')[-2])
             newZSKid = int(runInContainer('auth_example.com', 'pdnsutil add-zone-key example.com ZSK active unpublished ecdsa384').split(b'\n')[-2])
 
-            # wait for recursor to get new signatures - our record (SOA) TTL is 20
-            checkedSleep(20, 2, 'example.com', 'SOA')
+            # wait for recursor to get new signatures - our record (SOA) TTL is 20, but DNSKEY TTL is 40
+            checkedSleep(40, 2, 'example.com', 'SOA')
 
 
             # publish new DNSKEY
